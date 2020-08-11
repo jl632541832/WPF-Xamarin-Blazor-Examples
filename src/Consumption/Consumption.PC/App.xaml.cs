@@ -1,12 +1,10 @@
-﻿using Autofac;
-using Autofac.Builder;
-using Consumption.Core.Common;
+﻿using Consumption.Core.Response;
 using Consumption.Core.Interfaces;
-using Consumption.Core.IService;
 using Consumption.PC.View;
 using Consumption.PC.ViewCenter;
 using Consumption.Service;
 using Consumption.ViewModel;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -14,6 +12,10 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using Consumption.Common.Contract;
+using Consumption.ViewModel.Common;
+using Autofac;
+using System.Reflection;
 
 namespace Consumption.PC
 {
@@ -22,23 +24,33 @@ namespace Consumption.PC
     /// </summary>
     public partial class App : Application
     {
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
-            base.OnStartup(e);
-            this.ConfigureServices();
-            var view = AutofacProvider.Get<IModuleDialog>("LoginCenter");
-            view.ShowDialog();
+            Contract.serverUrl = ConfigurationManager.AppSettings["serverAddress"];
+            var container = ConfigureServices();
+            NetCoreProvider.RegisterServiceLocator(container);
+            LoginCenter viewCenter = new LoginCenter();
+            await viewCenter.ShowDialog();
         }
 
-        protected void ConfigureServices()
+        private IContainer ConfigureServices()
         {
-            AutofacLocator locator = new AutofacLocator();
-            ContainerBuilder builder = new ContainerBuilder();
-            builder.RegisterType<UserService>().As<IUserService>();
-            builder.RegisterType(typeof(LoginCenter)).Named("LoginCenter", typeof(IModuleDialog));
-            builder.RegisterType(typeof(MainCenter)).Named("MainCenter", typeof(IModuleDialog));
-            locator.Register(builder);
-            AutofacProvider.RegisterServiceLocator(locator);
+            var builder = new ContainerBuilder();
+            builder.RegisterType<ConsumptionService>().As<IConsumptionService>();
+
+            var assembly = Assembly.GetCallingAssembly();
+            var types = assembly.GetTypes();
+            foreach (var t in types)
+            {
+                if (t.Name.EndsWith("Center")) //简陋判断一下,一般而言,该定义仅仅注册Center结尾的类依赖关系。
+                {
+                    var firstInterface = t.GetInterfaces().FirstOrDefault();
+                    if (firstInterface != null)
+                        builder.RegisterType(t).Named(t.Name, firstInterface);
+                }
+            }
+            return builder.Build();
         }
+
     }
 }

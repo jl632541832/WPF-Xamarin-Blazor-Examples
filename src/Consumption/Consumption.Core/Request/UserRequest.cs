@@ -14,6 +14,8 @@
 
 namespace Consumption.Core.Request
 {
+    using Consumption.Core.Entity;
+    using Consumption.Core.Query;
     using System;
     using System.Collections.Generic;
     using System.Text;
@@ -25,8 +27,64 @@ namespace Consumption.Core.Request
     {
         public override string route { get => ServerAddress + "api/User/Login"; }
 
+        /// <summary>
+        /// 账户
+        /// </summary>
         public string account { get; set; }
 
+        /// <summary>
+        /// 密码
+        /// </summary>
         public string passWord { get; set; }
+    }
+
+    /// <summary>
+    /// 用户查询请求
+    /// </summary>
+    public class UserQueryRequest : BaseRequest
+    {
+        public override string route { get => ServerAddress + "api/User/GetUsers"; }
+
+        public UserParameters parameters { get; set; }
+    }
+
+    /// <summary>
+    /// 用户ID查询请求
+    /// </summary>
+    public class UserQueryByIdRequest : BaseRequest
+    {
+        public override string route { get => ServerAddress + "api/User/GetUser"; }
+
+        public int id { get; set; }
+    }
+
+    /// <summary>
+    /// 用户权限请求
+    /// </summary>
+    public class UserPermRequest : BaseRequest
+    {
+        public override string route { get => ServerAddress + "api/User/Perm"; }
+
+        public string account { get; set; }
+    }
+
+    /// <summary>
+    /// 更新/添加用户
+    /// </summary>
+    public class UserSaveRequest : BaseRequest
+    {
+        public override string route { get => ServerAddress + "api/User/SaveUser"; }
+
+        public User user { get; set; }
+    }
+
+    /// <summary>
+    /// 删除
+    /// </summary>
+    public class UserDeleteRequest : BaseRequest
+    {
+        public override string route { get => ServerAddress + "api/User/DeleteUser"; }
+
+        public int id { get; set; }
     }
 }

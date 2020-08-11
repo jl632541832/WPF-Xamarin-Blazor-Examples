@@ -15,16 +15,18 @@
 
 namespace Consumption.Api.Controllers
 {
-    using Consumption.Core.ApiInterfaes;
-    using Consumption.Core.Common;
+    using Consumption.Core.Response;
     using Consumption.Core.Entity;
     using Consumption.Core.Query;
+    using Consumption.EFCore;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Extensions.Logging;
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
+    using Consumption.EFCore.Context;
+    using Microsoft.AspNetCore.Server.HttpSys;
 
     /// <summary>
     /// 用户数据控制器
@@ -34,20 +36,16 @@ namespace Consumption.Api.Controllers
     public class UserController : Controller
     {
         private readonly ILogger<UserController> logger;
-        private readonly IUserRepository repository;
-        private readonly IUnitWork work;
+        private readonly IUnitOfWork work;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="logger"></param>
-        /// <param name="repository"></param>
         /// <param name="work"></param>
-        public UserController(ILogger<UserController> logger,
-            IUserRepository repository, IUnitWork work)
+        public UserController(ILogger<UserController> logger, IUnitOfWork work)
         {
             this.logger = logger;
-            this.repository = repository;
             this.work = work;
         }
 
@@ -64,19 +62,86 @@ namespace Consumption.Api.Controllers
             {
                 if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(passWord))
                     return Ok(new ConsumptionResponse() { success = false, message = "Request failed" });
-                var model = await repository.LoginAsync(account, passWord);
+
+                var model = await work.GetRepository<User>()
+                    .GetFirstOrDefaultAsync(predicate: x => x.Account == account && x.Password == passWord);
                 if (model != null)
-                    return Ok(new ConsumptionResponse()
+                {
+                    #region 获取所属权限
+                    var context = work.GetDbContext<ConsumptionContext>();
+                    if (model.FlagAdmin == 1)
                     {
-                        success = true,
-                        dynamicObj = model
-                    });
+                        var data = from a in context.Menus
+                                   select new
+                                   {
+                                       MenuName = a.MenuName,
+                                       MenuCaption = a.MenuCaption,
+                                       MenuNameSpace = a.MenuNameSpace,
+                                       MenuAuth = a.MenuAuth
+                                   };
+
+                        return Ok(new ConsumptionResponse()
+                        {
+                            success = true,
+                            dynamicObj = new
+                            {
+                                User = model,
+                                Menus = data.ToList()
+                            }
+                        });
+                    }
+                    else
+                    {
+                        var data = from a in context.GroupFuncs
+                                   join b in context.GroupUsers on a.GroupCode equals b.GroupCode
+                                   join c in context.Groups on a.GroupCode equals c.GroupCode
+                                   join d in context.Menus on a.MenuCode equals d.MenuCode
+                                   where b.Account.Equals(account)
+                                   select new
+                                   {
+                                       MenuName = d.MenuName,
+                                       MenuCaption = d.MenuCaption,
+                                       MenuNameSpace = d.MenuNameSpace,
+                                       MenuAuth = a.Auth
+                                   };
+                        return Ok(new ConsumptionResponse()
+                        {
+                            success = true,
+                            dynamicObj = new
+                            {
+                                User = model,
+                                Menus = data.ToList()
+                            }
+                        });
+                    }
+                    #endregion
+                }
                 else
-                    return Ok(new ConsumptionResponse()
-                    {
-                        success = false,
-                        message = "用户名或密码错误！"
-                    });
+                    return Ok(new ConsumptionResponse() { success = false, message = "用户名或密码错误！" });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "");
+                return Ok(new ConsumptionResponse() { success = false, message = "验证用户失败" });
+            }
+        }
+
+        /// <summary>
+        /// 获取用户数据信息
+        /// </summary>
+        /// <param name="id">用户ID</param>
+        /// <returns></returns>
+        [HttpGet]
+        public async Task<IActionResult> GetUser(int id)
+        {
+            try
+            {
+                var model = await work.GetRepository<User>().GetFirstOrDefaultAsync(predicate: x => x.Id == id);
+                return Ok(new ConsumptionResponse()
+                {
+                    success = true,
+                    dynamicObj = model
+                });
             }
             catch (Exception ex)
             {
@@ -84,13 +149,13 @@ namespace Consumption.Api.Controllers
                 return Ok(new ConsumptionResponse()
                 {
                     success = false,
-                    message = "Login failed"
+                    message = "获取用户数据异常!"
                 });
             }
         }
 
         /// <summary>
-        /// 获取用户数据信息
+        /// 获取用户数据列表信息
         /// </summary>
         /// <param name="parameters">请求参数</param>
         /// <returns>结果</returns>
@@ -99,16 +164,18 @@ namespace Consumption.Api.Controllers
         {
             try
             {
-                var models = await repository.GetModelList(parameters);
-
-                if (models.Count > 0)
-                    return Ok(new ConsumptionResponse()
-                    {
-                        success = true,
-                        dynamicObj = models,
-                        TotalRecord = models.TotalCount
-                    });
-                return Ok();
+                var models = await work.GetRepository<User>()
+                    .GetPagedListAsync(
+                    predicate: x =>
+                    string.IsNullOrWhiteSpace(parameters.Search) ? true : x.UserName.Contains(parameters.Search) ||
+                    string.IsNullOrWhiteSpace(parameters.Search) ? true : x.Account.Contains(parameters.Search),
+                    pageIndex: parameters.PageIndex,
+                    pageSize: parameters.PageSize);
+                return Ok(new ConsumptionResponse()
+                {
+                    success = true,
+                    dynamicObj = models
+                });
             }
             catch (Exception ex)
             {
@@ -116,7 +183,7 @@ namespace Consumption.Api.Controllers
                 return Ok(new ConsumptionResponse()
                 {
                     success = false,
-                    message = "Can't get data"
+                    message = "获取用户数据异常!"
                 });
             }
         }
@@ -132,62 +199,71 @@ namespace Consumption.Api.Controllers
             try
             {
                 if (user == null)
-                {
-                    return Ok(new ConsumptionResponse() { success = false, message = "Add data error" });
-                }
-                repository.AddModelAsync(user);
-                if (!await work.SaveChangedAsync())
-                {
-                    return Ok(new ConsumptionResponse()
-                    {
-                        success = false,
-                        message = "Error saving data"
-                    });
-                }
-                return Ok(new ConsumptionResponse() { success = true });
+                    return Ok(new ConsumptionResponse() { success = false, message = "数据非法" });
+                user.CreateTime = DateTime.Now;
+                user.LoginCounter = 0;
+                user.IsLocked = 0;
+                user.FlagAdmin = 0;
+                work.GetRepository<User>().Update(user);
+                if (await work.SaveChangesAsync() > 0)
+                    return Ok(new ConsumptionResponse() { success = true });
+
+                return Ok(new ConsumptionResponse() { success = false, message = "添加用户错误" });
             }
             catch (Exception ex)
             {
                 logger.LogDebug(ex, "");
-                return Ok(new ConsumptionResponse() { success = false, message = "Add user error" });
+                return Ok(new ConsumptionResponse() { success = false, message = "添加用户错误" });
             }
         }
 
         /// <summary>
-        /// 更新用户
+        /// 保存用户信息
         /// </summary>
-        /// <param name="id">ID</param>
-        /// <param name="user">用户信息</param>
+        /// <param name="user"></param>
         /// <returns></returns>
         [HttpPost]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] User user)
+        public async Task<IActionResult> SaveUser([FromBody] User user)
         {
             if (user == null)
-            {
-                return Ok(new ConsumptionResponse() { success = false, message = "Update data error" });
-            }
+                return Ok(new ConsumptionResponse() { success = false, message = "数据非法" });
             try
             {
-                var dbUser = await repository.GetUserByIdAsync(id);
-                if (dbUser == null) return Ok(new ConsumptionResponse() { success = false, message = "The user was not found!" });
-                dbUser.UserName = user.UserName;
-                dbUser.Tel = user.Tel;
-                dbUser.Password = user.Password;
-                dbUser.IsLocked = user.IsLocked;
-                dbUser.Address = user.Address;
-                dbUser.Email = user.Email;
-                dbUser.FlagAdmin = user.FlagAdmin;
-                repository.UpdateModelAsync(dbUser);
-                if (!await work.SaveChangedAsync())
+                //check?
+                var repository = work.GetRepository<User>();
+                if (user.Id == 0)
                 {
-                    return Ok(new ConsumptionResponse() { success = false, message = $"update post {user.Id} failed when saving." });
+                    user.CreateTime = DateTime.Now;
+                    user.FlagOnline = string.Empty;
+                    repository.Insert(user);
+                    if (await work.SaveChangesAsync() > 0)
+                        return Ok(new ConsumptionResponse() { success = true });
                 }
-                return Ok(new ConsumptionResponse() { success = true });
+                else
+                {
+                    var dbUser = await repository.GetFirstOrDefaultAsync(predicate: x => x.Id == user.Id);
+                    if (dbUser == null) return Ok(new ConsumptionResponse()
+                    {
+                        success = false,
+                        message = "该用户已不存在"
+                    });
+                    dbUser.UserName = user.UserName;
+                    dbUser.Tel = user.Tel;
+                    dbUser.Password = user.Password;
+                    dbUser.IsLocked = user.IsLocked;
+                    dbUser.Address = user.Address;
+                    dbUser.Email = user.Email;
+                    dbUser.FlagAdmin = user.FlagAdmin;
+                    repository.Update(dbUser);
+                    if (await work.SaveChangesAsync() > 0)
+                        return Ok(new ConsumptionResponse() { success = true });
+                }
+                return Ok(new ConsumptionResponse() { success = false, message = $"保存用户信息错误" });
             }
             catch (Exception ex)
             {
                 logger.LogDebug(ex, "");
-                return Ok(new ConsumptionResponse() { success = false, message = "Update user error" });
+                return Ok(new ConsumptionResponse() { success = false, message = "修改用户信息错误" });
             }
         }
 
@@ -201,22 +277,21 @@ namespace Consumption.Api.Controllers
         {
             try
             {
-                var user = await repository.GetUserByIdAsync(id);
+                var repository = work.GetRepository<User>();
+
+                var user = await repository.GetFirstOrDefaultAsync(predicate: x => x.Id == id);
                 if (user == null)
-                {
-                    return Ok(new ConsumptionResponse() { success = false, message = "The user was not found!" });
-                }
-                repository.DeleteModelAsync(user);
-                if (!await work.SaveChangedAsync())
-                {
-                    return Ok(new ConsumptionResponse() { success = false, message = $"Deleting post {id} failed when saving." });
-                }
-                return Ok(new ConsumptionResponse() { success = true });
+                    return Ok(new ConsumptionResponse() { success = false, message = "删除用户异常" });
+                repository.Delete(user);
+                if (await work.SaveChangesAsync() > 0)
+                    return Ok(new ConsumptionResponse() { success = true });
+                return Ok(new ConsumptionResponse() { success = false, message = $"删除数据异常" });
             }
             catch (Exception ex)
             {
                 return Ok(new ConsumptionResponse() { success = false, message = ex.Message });
             }
         }
+
     }
 }

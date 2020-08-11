@@ -12,20 +12,165 @@
 * 项目说明  : 以上所有代码均属开源免费使用,禁止个人行为出售本项目源代码
 */
 
-
 namespace Consumption.PC.ViewCenter
 {
-
+    using Consumption.Core.Response;
+    using Consumption.Core.Interfaces;
+    using Consumption.PC.View;
     using Consumption.ViewModel;
+    using GalaSoft.MvvmLight.Messaging;
     using System;
-    using System.Collections.Generic;
-    using System.Text;
+    using System.Runtime;
+    using System.Threading.Tasks;
+    using Module = ViewModel.Common.Module;
+    using Consumption.PC.Common;
+    using Consumption.Core.Common;
+    using Consumption.Common.Contract;
+    using Consumption.PC.Template;
+    using MaterialDesignThemes.Wpf;
+    using System.Linq;
+    using Consumption.ViewModel.Common;
 
     /// <summary>
     /// 首页控制类
     /// </summary>
-    public class MainCenter : BaseDialogCenter<MainWindow, MainViewModel>
+    public class MainCenter : BaseDialogCenter<MaterialDesignMainWindow, MainViewModel>
     {
+        public override void SubscribeMessenger()
+        {
+            //更新消息
+            Messenger.Default.Register<MsgInfo>(View, "UpdateDialog", m =>
+              {
+                  if (m.IsOpen)
+                      _ = DialogHost.Show(new SplashScreenView()
+                      {
+                          DataContext = new { Msg = m.Msg }
+                      }, "Root");
+                  else
+                      ViewModel.DialogIsOpen = false;
+              });
+            //执行菜单模块动画
+            Messenger.Default.Register<string>(View, "WindowMinimize", arg =>
+            {
+                View.WindowState = System.Windows.WindowState.Minimized;
+            });
+            Messenger.Default.Register<string>(View, "WindowMaximize", arg =>
+            {
+                if (View.WindowState == System.Windows.WindowState.Maximized)
+                    View.WindowState = System.Windows.WindowState.Normal;
+                else
+                    View.WindowState = System.Windows.WindowState.Maximized;
+            });
+            //展开惨淡
+            Messenger.Default.Register<string>(View, "ExpandMenu", arg =>
+            {
+                if (View.grdLeftMenu.Width < 200)
+                    AnimationHelper
+                    .CreateWidthChangedAnimation(View.grdLeftMenu, 60, 200, new TimeSpan(0, 0, 0, 0, 250));
+                else
+                    AnimationHelper
+                    .CreateWidthChangedAnimation(View.grdLeftMenu, 200, 60, new TimeSpan(0, 0, 0, 0, 250));
+            });
+            //执行返回首页
+            Messenger.Default.Register<string>(View, "GoHomePage", arg =>
+            {
+                InitHomeView();
+            });
+            //打开页面
+            Messenger.Default.Register<Module>(View, "OpenPage", async m =>
+            {
+                try
+                {
+                    var module = ViewModel.ModuleList.FirstOrDefault(t => t.Name == m.Name);
+                    if (module == null)
+                    {
+                        NetCoreProvider.Get<IModule>(m.TypeName, out IModule dialog);
+                        if (dialog == null)
+                        {
+                            //404
+                            return;
+                        }
+                        _ = DialogHost.Show(new SplashScreenView() { DataContext = new { Msg = "正在打开页面..." } }, "Root");
+                        ViewModel.DialogIsOpen = true;
+                        await Task.Delay(100);
+                        //将数据库中获取的菜单Namespace在容器当中查找依赖关系的实例
+                        await dialog.BindDefaultModel(m.Auth);
+                        ViewModel.ModuleList.Add(new ModuleUIComponent()
+                        {
+                            Code = m.Code,
+                            Auth = m.Auth,
+                            Name = m.Name,
+                            TypeName = m.TypeName,
+                            Body = dialog.GetView()
+                        });
+                        ViewModel.CurrentModule = ViewModel.ModuleList[ViewModel.ModuleList.Count - 1];
+                    }
+                    else
+                        ViewModel.CurrentModule = module;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex.Message);
+                }
+                finally
+                {
+                    ViewModel.DialogIsOpen = false; //关闭等待窗口
+                    GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                    GC.Collect();
+                }
+            });
+            //关闭页面
+            Messenger.Default.Register<Module>(View, "ClosePage", m =>
+           {
+               try
+               {
+                   var module = ViewModel.ModuleList.FirstOrDefault(t => t.Name == m.Name);
+                   if (module != null)
+                   {
+                       ViewModel.ModuleList.Remove(module);
+                       if (ViewModel.ModuleList.Count > 0)
+                           ViewModel.CurrentModule = ViewModel
+                           .ModuleList[ViewModel.ModuleList.Count - 1];
+                       else
+                           ViewModel.CurrentModule = null;
+                   }
+               }
+               catch (Exception ex)
+               {
+                   Log.Error(ex.Message);
+               }
+               finally
+               {
+                   GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                   GC.Collect();
+               }
+           });
+        }
 
+        /// <summary>
+        /// 首页重写弹窗-
+        /// </summary>
+        /// <returns></returns>
+        public override async Task<bool> ShowDialog()
+        {
+            await ViewModel.InitDefaultView();
+            InitHomeView();
+            return await base.ShowDialog();
+        }
+
+        /// <summary>
+        /// 临时固定,后期修改动态绑定 2020-07-19
+        /// </summary>
+        void InitHomeView()
+        {
+            NetCoreProvider.Get("HomeCenter", out IModule dialog);
+            dialog.BindDefaultModel();
+            ViewModel.ModuleList.Add(new ModuleUIComponent()
+            {
+                Name = "首页",
+                Body = dialog.GetView()
+            });
+            ViewModel.CurrentModule = ViewModel.ModuleList[ViewModel.ModuleList.Count - 1];
+        }
     }
 }

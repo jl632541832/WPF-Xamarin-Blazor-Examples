@@ -14,26 +14,28 @@
 
 namespace Consumption.ViewModel
 {
-    using Consumption.Core.Common;
-    using Consumption.Core.IService;
+    using Consumption.Core.Response;
+    using Consumption.Core.Interfaces;
     using GalaSoft.MvvmLight;
     using GalaSoft.MvvmLight.Command;
     using GalaSoft.MvvmLight.Messaging;
     using System;
     using System.Collections.Generic;
     using System.Text;
+    using System.Threading.Tasks;
+    using Consumption.Common.Contract;
+    using Consumption.Core.Common;
 
     /// <summary>
     /// 登录模块
     /// </summary>
     public class LoginViewModel : BaseViewModel
     {
-        private readonly IUserService userService;
+        private readonly IConsumptionService service;
         public LoginViewModel()
         {
-            userService = AutofacProvider.Get<IUserService>();
+            NetCoreProvider.Get(out service);
             LoginCommand = new RelayCommand(Login);
-            LogoutCommand = new RelayCommand(LogOut);
         }
 
         #region Property
@@ -70,7 +72,6 @@ namespace Consumption.ViewModel
         #region Command
 
         public RelayCommand LoginCommand { get; private set; }
-        public RelayCommand LogoutCommand { get; private set; }
 
         /// <summary>
         /// 登录系统
@@ -79,38 +80,55 @@ namespace Consumption.ViewModel
         {
             try
             {
+                if (DialogIsOpen) return;
                 if (string.IsNullOrWhiteSpace(UserName) || string.IsNullOrWhiteSpace(PassWord))
                 {
-                    this.Report = "请输入用户名密码!";
+                    SnackBar("请输入用户名密码!");
                     return;
                 }
-
-                var br = await userService.LoginAsync(UserName, PassWord);
-                if (!br.success)
+                DialogIsOpen = true;
+                await Task.Delay(300);
+                var r = await service.LoginAsync(UserName, PassWord);
+                if (r == null || !r.success)
                 {
-                    this.Report = br.message;
+                    SnackBar(r == null ? "远程服务器无法连接!" : r.message);
                     return;
                 }
-                Messenger.Default.Send(true, "NavigationHome");
+                var authResult = await service.GetAuthListAsync();
+                if (authResult == null || !authResult.success)
+                {
+                    SnackBar("获取模块清单异常!");
+                    return;
+                }
+                #region 关联用户信息/缓存
+
+                Contract.Account = r.dynamicObj.User.Account;
+                Contract.UserName = r.dynamicObj.User.UserName;
+                Contract.IsAdmin = r.dynamicObj.User.FlagAdmin == 1;
+                Contract.Menus = r.dynamicObj.Menus; //用户包含的权限信息
+                Contract.AuthItems = authResult.dynamicObj;
+
+                #endregion
+
+                //这行代码会发射到首页,Center中会定义所有的Messenger
+                Messenger.Default.Send(true, "NavigationPage");
             }
             catch (Exception ex)
             {
-
+                SnackBar(ex.Message);
+                Log.Error(ex.Message);
             }
             finally
             {
-
+                DialogIsOpen = false;
             }
         }
 
-        /// <summary>
-        /// 登出系统
-        /// </summary>
-        private void LogOut()
-        {
-            Messenger.Default.Send(true, "LogOut");
-        }
-
         #endregion
+
+        public override void Exit()
+        {
+            Messenger.Default.Send(false, "Exit");
+        }
     }
 }

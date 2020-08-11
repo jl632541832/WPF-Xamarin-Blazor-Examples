@@ -23,61 +23,53 @@ namespace Consumption.PC.ViewCenter
     using System.Windows.Controls;
     using System.Windows.Input;
 
-    public class BaseDialogCenter<TView, TViewModel> : Consumption.Core.Interfaces.IModuleDialog
+    public class BaseDialogCenter<TView, TViewModel> :
+        Consumption.Core.Interfaces.IModuleDialog
         where TView : Window, new()
         where TViewModel : ViewModelBase, new()
     {
-        public TView View;
-        public TViewModel ViewModel;
-        public void BindDefaultViewModel()
+        protected TView View = new TView();
+        protected TViewModel ViewModel = new TViewModel();
+
+        /// <summary>
+        /// 绑定默认ViewModel
+        /// </summary>
+        protected void BindDefaultViewModel()
         {
-            if (ViewModel == null) ViewModel = new TViewModel();
-            GetDialog().DataContext = ViewModel;
+            View.DataContext = ViewModel;
         }
 
-        public Window GetDialog()
+        /// <summary>
+        /// 打开窗口
+        /// </summary>
+        /// <returns></returns>
+        public virtual async Task<bool> ShowDialog()
         {
-            if (View == null)
-                View = new TView();
-            return View;
+            this.SubscribeMessenger();
+            this.SubscribeEvent();
+            this.BindDefaultViewModel();
+            var result = View.ShowDialog();
+            return await Task.FromResult((bool)result);
         }
 
-        public void RegisterDefaultEvent()
-        {
-            var window = GetDialog();
-            window.MouseDown += (sender, e) =>
-            {
-                if (e.LeftButton == MouseButtonState.Pressed)
-                    window.DragMove();
-            };
-        }
-
-        public Task<bool> ShowDialog()
-        {
-            var window = GetDialog();
-            if (window.DataContext == null)
-            {
-                this.RegisterMessenger();
-                this.RegisterDefaultEvent();
-                this.BindDefaultViewModel();
-            }
-            var result = window.ShowDialog();
-            return Task.FromResult((bool)result);
-        }
-
-        public void BindViewModel<BViewModel>(BViewModel viewModel)
-        {
-        }
 
         public virtual void Close()
         {
         }
 
-        public void Register()
+        /// <summary>
+        /// 注册默认事件
+        /// </summary>
+        public void SubscribeEvent()
         {
+            View.MouseDown += (sender, e) =>
+            {
+                if (e.LeftButton == MouseButtonState.Pressed)
+                    View.DragMove();
+            };
         }
 
-        public virtual void RegisterMessenger()
+        public virtual void SubscribeMessenger()
         {
         }
     }

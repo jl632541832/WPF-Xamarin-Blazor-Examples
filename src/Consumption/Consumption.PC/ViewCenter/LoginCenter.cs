@@ -14,33 +14,39 @@
 
 namespace Consumption.PC.ViewCenter
 {
-    using Consumption.Core.Common;
-    using Consumption.Core.Interfaces;
     using Consumption.PC.View;
     using Consumption.ViewModel;
     using GalaSoft.MvvmLight.Messaging;
+    using Consumption.Core.Common;
     using System;
-    using System.Collections.Generic;
-    using System.Text;
-    using System.Windows;
+    using Consumption.PC.Template;
+    using MaterialDesignThemes.Wpf;
+    using Consumption.ViewModel.Common;
 
     /// <summary>
     /// 登录控制类
     /// </summary>
     public class LoginCenter : BaseDialogCenter<LoginView, LoginViewModel>
     {
-        public override void RegisterMessenger()
+        public override void SubscribeMessenger()
         {
-            Messenger.Default.Register<bool>(GetDialog(), "NavigationHome", arg =>
-             {
-                 GetDialog().Hide();
-                 var view = AutofacProvider.Get<IModuleDialog>("MainCenter");
-                 view.ShowDialog();
-             });
-            Messenger.Default.Register<bool>(GetDialog(), "Exit", arg =>
+            Messenger.Default.Register<string>(View, "Snackbar", arg =>
             {
-                GetDialog().Close();
+                var messageQueue = View.SnackbarThree.MessageQueue;
+                messageQueue.Enqueue(arg);
             });
+            Messenger.Default.Register<bool>(View, "NavigationPage", async arg =>
+              {
+                  MainCenter mainView = new MainCenter();
+                  View.Close();
+                  await mainView.ShowDialog();
+              });
+            Messenger.Default.Register<bool>(View, "Exit", async r =>
+             {
+                 if (r)
+                     if (!await Msg.Question("确认退出系统?")) return;
+                 Environment.Exit(0);
+             });
         }
     }
 }

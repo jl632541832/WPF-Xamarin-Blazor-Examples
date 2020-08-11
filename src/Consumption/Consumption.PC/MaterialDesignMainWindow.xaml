@@ -1,0 +1,251 @@
+﻿<Window x:Class="Consumption.PC.MaterialDesignMainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Consumption.PC"
+        mc:Ignorable="d"   
+          xmlns:dragablz="http://dragablz.net/winfx/xaml/dragablz"
+        xmlns:ivc="clr-namespace:Consumption.PC.Common.Converters"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes" 
+        xmlns:template="clr-namespace:Consumption.PC.Template"
+        WindowStartupLocation="CenterScreen"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        Background="{DynamicResource MaterialDesignPaper}"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             WindowStyle="None" ResizeMode="CanResizeWithGrip"  MinWidth="1020" MinHeight="700" >
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="-1" />
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <ivc:IUrlToBitmapConverter x:Key="itc"/>
+        <ivc:MenuWidthConverter x:Key="mwc"/>
+    </Window.Resources>
+    <materialDesign:DialogHost Identifier="Root"
+        IsOpen="{Binding DialogIsOpen}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+
+            <Grid x:Name="grdLeftMenu" Width="60">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="125"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <Image 
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                Source="pack://application:,,,/Consumption.PC;Component/Images/test_user.png" 
+                                       Width="36" Height="36">
+                    <Image.Clip>
+                        <EllipseGeometry RadiusX="18" RadiusY="18" Center="18,18"/>
+                    </Image.Clip>
+                </Image>
+                <!--菜单模块-->
+                <ItemsControl Grid.Row="1" ItemsSource="{Binding ModuleManager.Modules}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Height="60" Width="250" ToolTip="{Binding Name}" 
+                                    HorizontalContentAlignment="Left"
+                                    Style="{StaticResource   MaterialDesignFlatButton}"
+                                    Command="{Binding RelativeSource={RelativeSource 
+                                AncestorType=ItemsControl},Path=DataContext.OpenPageCommand}" 
+                                                      CommandParameter="{Binding}">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="{Binding Code}"  
+                                                             Height="25" Width="25" 
+                                                             VerticalAlignment="Center" />
+                                    <TextBlock Margin="20 0 0 0" Text="{Binding Name}" FontSize="14"   
+                                                             VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition Height="auto"/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <!--系统标题头-->
+                <materialDesign:ColorZone VerticalAlignment="Top" Mode="PrimaryMid"
+                   Padding="10 30 20 10"  materialDesign:ShadowAssist.ShadowDepth="Depth0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton  HorizontalAlignment="Left" Style="{StaticResource MaterialDesignHamburgerToggleButton}" 
+                                      Command="{Binding ExpandMenuCommand}" Margin="10 0 0 0"
+                                      Width="30" Height="30" FocusVisualStyle="{x:Null}" Name="toggle"/>
+                            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center"
+                                       FontSize="22" 
+                                       Margin="10 0 0 0"
+                                   >WPF MVVM SAMPLE</TextBlock>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <materialDesign:PopupBox FocusVisualStyle="{x:Null}"
+                                                 PlacementMode="BottomAndAlignRightEdges"
+                                                 StaysOpen="False">
+                                <StackPanel>
+                                    <Button Click="btnGithub">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Github"  VerticalAlignment="Center" />
+                                            <TextBlock Text="  Github"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="btnBilibili">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="AlphaBBox"  VerticalAlignment="Center" />
+                                            <TextBlock Text="  视频教程"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="btnQQ">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="Qqchat"  VerticalAlignment="Center" />
+                                            <TextBlock Text="  加入QQ"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </materialDesign:PopupBox>
+                            <Button  Command="{Binding MinCommand}" 
+                                     ToolTip="最小化"
+                                     Style="{StaticResource MaterialDesignFlatMidBgButton}">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="WindowMinimize" 
+                                    VerticalAlignment="Center" Width="20" Height="20"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding MaxCommand}" 
+                                    ToolTip="最大化"
+                                    Style="{StaticResource MaterialDesignFlatMidBgButton}">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="WindowMaximize"                        
+                                     VerticalAlignment="Center" Width="20" Height="20"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding ExitCommand}" 
+                                     ToolTip="退出系统"
+                                    Style="{StaticResource MaterialDesignFlatMidBgButton}">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="WindowClose"                        
+                                     VerticalAlignment="Center" Width="20" Height="20"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <dragablz:DragablzItemsControl Grid.Row="1" 
+                                                       ItemsSource="{Binding ModuleList}"
+                               HorizontalAlignment="Left" Margin="0 20 0 0"
+                                      VerticalAlignment="Bottom">
+                            <dragablz:DragablzItemsControl.ItemsOrganiser>
+                                <dragablz:HorizontalOrganiser />
+                            </dragablz:DragablzItemsControl.ItemsOrganiser>
+                            <dragablz:DragablzItemsControl.ItemContainerStyle>
+                                <Style TargetType="dragablz:DragablzItem">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="{x:Type dragablz:DragablzItem}">
+                                                <ControlTemplate.Resources>
+                                                    <SineEase x:Key="Ease" EasingMode="EaseInOut" />
+                                                </ControlTemplate.Resources>
+                                                <Grid RenderTransformOrigin=".5, .5">
+                                                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" 
+                                                         HorizontalAlignment="{TemplateBinding Control.HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding Control.VerticalContentAlignment}" 
+                                                                      SnapsToDevicePixels="{TemplateBinding UIElement.SnapsToDevicePixels}"
+                                                         Margin="{TemplateBinding Padding}"  />
+                                                    <Grid.RenderTransform>
+                                                        <ScaleTransform x:Name="ScaleTransform" ScaleX="1" ScaleY="1" />
+                                                    </Grid.RenderTransform>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Trigger.EnterActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleX">
+                                                                        <EasingDoubleKeyFrame KeyTime="0:0:0.3" Value="1.12" EasingFunction="{StaticResource Ease}" />
+                                                                    </DoubleAnimationUsingKeyFrames>
+                                                                    <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleY">
+                                                                        <EasingDoubleKeyFrame KeyTime="0:0:0.3" Value="1.12" EasingFunction="{StaticResource Ease}" />
+                                                                    </DoubleAnimationUsingKeyFrames>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </Trigger.EnterActions>
+                                                        <Trigger.ExitActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleX">
+                                                                        <EasingDoubleKeyFrame KeyTime="0:0:0.3" Value="1" EasingFunction="{StaticResource Ease}" />
+                                                                    </DoubleAnimationUsingKeyFrames>
+                                                                    <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleY">
+                                                                        <EasingDoubleKeyFrame KeyTime="0:0:0.3" Value="1" EasingFunction="{StaticResource Ease}" />
+                                                                    </DoubleAnimationUsingKeyFrames>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </Trigger.ExitActions>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </dragablz:DragablzItemsControl.ItemContainerStyle>
+                            <dragablz:DragablzItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <materialDesign:Chip Margin="0 0 5 0" IsDeletable="True" 
+                                                     Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ItemsControl},Path=DataContext.OpenPageCommand}"
+                                                     CommandParameter="{Binding}"
+                                                     DeleteCommand="{Binding RelativeSource={RelativeSource Mode=FindAncestor,AncestorType=ItemsControl},Path=DataContext.ClosePageCommand}"
+                                                     DeleteCommandParameter="{Binding}"
+                                                     DeleteToolTip="关闭当前页">
+                                        <Thumb dragablz:DragablzItem.IsCustomThumb="True" >
+                                            <i:Interaction.Triggers>
+                                                <i:EventTrigger EventName="PreviewMouseLeftButtonDown">
+                                                    <i:InvokeCommandAction 
+                                                    Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor,AncestorType={x:Type materialDesign:Chip}},Path=Command}"
+                                                    CommandParameter="{Binding}" />
+                                                </i:EventTrigger>
+                                            </i:Interaction.Triggers>
+                                            <Thumb.Template>
+                                                <ControlTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <materialDesign:PackIcon Kind="{Binding Code}" Height="25" Width="25" VerticalAlignment="Center" />
+                                                        <TextBlock Margin="5 0 0 0" Text="{Binding Name}" FontSize="14" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </materialDesign:Chip>
+                                </DataTemplate>
+                            </dragablz:DragablzItemsControl.ItemTemplate>
+                        </dragablz:DragablzItemsControl>
+                    </Grid>
+                </materialDesign:ColorZone>
+                <!--工具栏(显示标签和功能清单)-->
+                <materialDesign:ColorZone Grid.Row="1" CornerRadius="3">
+                    <DockPanel>
+                        <TextBlock Text="{Binding ElementName=page,Path=Content.DataContext.SelectPageTitle}"  
+                                   FontWeight="Bold" FontSize="26" Padding="15" />
+                        <template:ToolbarContainer DataContext="{Binding ElementName=page,Path=Content.DataContext}" 
+                                                   HorizontalAlignment="Right"/>
+                    </DockPanel>
+                </materialDesign:ColorZone>
+                <!--右侧内容区域-->
+                <ContentControl Name="page" Content="{Binding CurrentModule.Body}" 
+                                Grid.Row="3"/>
+            </Grid>
+        </Grid>
+    </materialDesign:DialogHost>
+</Window>

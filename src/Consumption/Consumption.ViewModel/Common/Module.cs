@@ -2,7 +2,7 @@
 *
 * 文件名    ：Module                             
 * 程序说明  : 定义模块的数据结构
-* 更新时间  : 2020-05-12 21：09
+* 更新时间  : 2020-06-01 22：06
 * 联系作者  : QQ:779149549 
 * 开发者群  : QQ群:874752819
 * 邮件联系  : zhouhaogg789@outlook.com
@@ -23,7 +23,8 @@ namespace Consumption.ViewModel.Common
     {
         private string code;
         private string name;
-        private int? auth;
+        private int auth;
+        private string typeName;
 
         /// <summary>
         /// 模块图标代码
@@ -44,12 +45,38 @@ namespace Consumption.ViewModel.Common
         }
 
         /// <summary>
+        /// 模块命名空间
+        /// </summary>
+        public string TypeName
+        {
+            get { return typeName; }
+            set { typeName = value; RaisePropertyChanged(); }
+        }
+
+        /// <summary>
         /// 权限值
         /// </summary>
-        public int? Auth
+        public int Auth
         {
             get { return auth; }
             set { auth = value; RaisePropertyChanged(); }
+        }
+    }
+
+    /// <summary>
+    /// 模块UI组件
+    /// </summary>
+    public class ModuleUIComponent : Module
+    {
+        private object body;
+
+        /// <summary>
+        /// 页面内容
+        /// </summary>
+        public object Body
+        {
+            get { return body; }
+            set { body = value; RaisePropertyChanged(); }
         }
     }
 }

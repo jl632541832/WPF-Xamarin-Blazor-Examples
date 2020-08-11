@@ -12,6 +12,8 @@
 * 项目说明  : 以上所有代码均属开源免费使用,禁止个人行为出售本项目源代码
 */
 
+using System.Threading.Tasks;
+
 namespace Consumption.Core.Interfaces
 {
     /// <summary>
@@ -19,22 +21,17 @@ namespace Consumption.Core.Interfaces
     /// </summary>
     public interface IModule
     {
+        object GetView();
+
         /// <summary>
-        /// 关联数据上下文
+        /// 关联默认数据上下文(包含权限相关)
         /// </summary>
-        /// <typeparam name="TViewModel"></typeparam>
-        /// <param name="viewModel"></param>
-        void BindViewModel<TViewModel>(TViewModel viewModel) where TViewModel : class, new();
+        Task BindDefaultModel(int AuthValue = 0);
 
         /// <summary>
         /// 关联默认数据上下文
         /// </summary>
         void BindDefaultModel();
 
-        /// <summary>
-        /// 获取主窗口
-        /// </summary>
-        /// <returns></returns>
-        object GetView();
     }
 }

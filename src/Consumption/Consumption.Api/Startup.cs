@@ -17,11 +17,12 @@ namespace Consumption.Api
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
-    using Consumption.Core.ApiInterfaes;
-    using Consumption.EFCore.Orm;
-    using Consumption.EFCore.Repository;
+    using Consumption.Core.Entity;
+    using Consumption.EFCore;
+    using Consumption.EFCore.Context;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.HttpsPolicy;
@@ -32,13 +33,23 @@ namespace Consumption.Api
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Logging;
 
+    /// <summary>
+    /// 
+    /// </summary>
     public class Startup
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="configuration"></param>
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public IConfiguration Configuration { get; }
 
         /// <summary>
@@ -64,23 +75,25 @@ namespace Consumption.Api
 
             services.AddDbContext<ConsumptionContext>(options =>
             {
-                var connectionString = Configuration.GetConnectionString("NoteConnection");
-                options.UseSqlite(connectionString);
-            });
+                //迁移至Sqlite
+                //var connectionString = Configuration.GetConnectionString("NoteConnection");
+                //options.UseSqlite(connectionString);
 
-            //添加接口映射关系
-            services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IUserLogRepository, UserLogRepository>();
-            services.AddScoped<IMenuRepository, MenuRepository>();
-            services.AddScoped<IGroupRepository, GroupRepository>();
-            services.AddScoped<IBasicRepository, BasicRepository>();
-            services.AddScoped<IBasicTypeRepository, BasicTypeRepository>();
-            services.AddScoped<IAuthItemRepository, AuthItemRepository>();
-            services.AddScoped<IUnitWork, UnitWork>();
+                //迁移至MySql
+                var connectionString = Configuration.GetConnectionString("MySqlNoteConnection");
+                options.UseMySQL(connectionString);
+            })
+            .AddUnitOfWork<ConsumptionContext>()
+            .AddCustomRepository<User, CustomUserRepository>()
+            .AddCustomRepository<UserLog, CustomUserLogRepository>()
+            .AddCustomRepository<Menu, CustomMenuRepository>()
+            .AddCustomRepository<Group, CustomGroupRepository>()
+            .AddCustomRepository<AuthItem, CustomAuthItemRepository>()
+            .AddCustomRepository<Basic, CustomBasicRepository>();
 
             services.AddSwaggerGen(options =>
             {
-                options.IncludeXmlComments("../docs/NoteApi.xml");
+                options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NoteApi.xml"));
                 options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo()
                 {
                     Title = "Note Service API",
@@ -94,7 +107,11 @@ namespace Consumption.Api
             });
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        /// <summary>
+        /// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        /// </summary>
+        /// <param name="app"></param>
+        /// <param name="env"></param>
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())

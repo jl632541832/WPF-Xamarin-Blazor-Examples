@@ -14,12 +14,17 @@
 
 namespace Consumption.ViewModel
 {
+    using Consumption.Core.Response;
+    using Consumption.Core.Interfaces;
     using GalaSoft.MvvmLight;
     using GalaSoft.MvvmLight.Command;
     using GalaSoft.MvvmLight.Messaging;
     using System;
     using System.Collections.Generic;
     using System.Text;
+    using System.Threading.Tasks;
+    using Consumption.Core.Common;
+    using Consumption.ViewModel.Common;
 
     /// <summary>
     /// MVVM基类
@@ -28,11 +33,37 @@ namespace Consumption.ViewModel
     {
         public BaseViewModel()
         {
-            CloseCommand = new RelayCommand(() =>
-              {
-                  Messenger.Default.Send(true, "Exit");
-              });
+            ExitCommand = new RelayCommand(Exit);
         }
-        public RelayCommand CloseCommand { get; private set; }
+        public RelayCommand ExitCommand { get; private set; }
+
+        /// <summary>
+        /// 传递True代表需要确认用户是否关闭,你可以选择传递false强制关闭
+        /// </summary>
+        public virtual void Exit()
+        {
+            Messenger.Default.Send(true, "Exit");
+        }
+
+
+        private bool isOpen;
+
+        /// <summary>
+        /// 窗口是否显示
+        /// </summary>
+        public bool DialogIsOpen
+        {
+            get { return isOpen; }
+            set { isOpen = value; RaisePropertyChanged(); }
+        }
+
+        /// <summary>
+        /// 通知异常
+        /// </summary>
+        /// <param name="msg"></param>
+        public void SnackBar(string msg)
+        {
+            Messenger.Default.Send(msg, "Snackbar");
+        }
     }
 }

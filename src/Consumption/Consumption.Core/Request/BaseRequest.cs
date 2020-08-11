@@ -14,11 +14,10 @@
 
 namespace Consumption.Core.Request
 {
-    using Consumption.Core.Common;
+    using Consumption.Common.Contract;
+    using Consumption.Core.Attributes;
     using Newtonsoft.Json;
     using System;
-    using System.Collections.Generic;
-    using System.Configuration;
     using System.Reflection;
     using System.Text;
     using System.Web;
@@ -28,7 +27,7 @@ namespace Consumption.Core.Request
     /// </summary>
     public class BaseRequest
     {
-        private readonly string _basePath = ConfigurationManager.AppSettings["serverAddress"];
+        private readonly string _basePath = Contract.serverUrl;
 
         [Prevent]
         public virtual string ServerAddress
@@ -80,14 +79,16 @@ namespace Consumption.Core.Request
                                 if (Qpvalue != null && Qpvalue.ToString() != "")
                                 {
                                     if (getBuilder.ToString() == string.Empty) getBuilder.Append("?");
-                                    getBuilder.Append(Qproperty.Name + "=" + 
+                                    getBuilder.Append(Qproperty.Name + "=" +
                                         HttpUtility.UrlEncode(Convert.ToString(Qpvalue)) + "&");
                                 }
                             }
                         }
                         getBuilder.Append(pbuilder.ToString());
                     }
-                    else if (pvalue != null && pvalue.GetType().Namespace == "Consumption.Core.Entity")
+                    else if (pvalue != null &&
+                        (pvalue.GetType().Namespace == "Consumption.Core.Entity" ||
+                        pvalue.GetType().Namespace == "Consumption.Core.RequestForm"))
                     {
                         //当属性为对象得情况下, 进行序列化
                         pvalue = JsonConvert.SerializeObject(pvalue);

@@ -2,7 +2,7 @@
 *
 * 文件名    ：IAuthority                             
 * 程序说明  : 程序功能权限接口
-* 更新时间  : 2020-05-11
+* 更新时间  : 2020-07-11 18:00
 * 联系作者  : QQ:779149549 
 * 开发者群  : QQ群:874752819
 * 邮件联系  : zhouhaogg789@outlook.com
@@ -20,20 +20,10 @@ namespace Consumption.Core.Interfaces
     public interface IAuthority
     {
         /// <summary>
-        /// 获取按钮权限
+        /// 初始化权限
         /// </summary>
         /// <param name="authValue"></param>
         /// <returns></returns>
-        bool GetButtonAuth(int authValue);
-
-        /// <summary>
-        /// 加载模板权限
-        /// </summary>
-        void LoadModuleAuth();
-
-        /// <summary>
-        /// 权限值
-        /// </summary>
-        int? AuthValue { get; set; }
+        void InitPermissions(int AuthValue);
     }
 }

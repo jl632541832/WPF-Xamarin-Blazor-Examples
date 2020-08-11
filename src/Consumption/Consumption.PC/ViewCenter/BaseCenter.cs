@@ -14,39 +14,51 @@
 
 namespace Consumption.PC.ViewCenter
 {
-    using Autofac.Core;
     using Consumption.Core.Entity;
+    using Consumption.Core.Interfaces;
     using GalaSoft.MvvmLight;
+    using MaterialDesignThemes.Wpf;
     using NLog.Filters;
     using System;
     using System.Collections.Generic;
     using System.Text;
+    using System.Threading.Tasks;
     using System.Windows;
     using System.Windows.Controls;
+    using System.Windows.Media;
+    using IModule = Core.Interfaces.IModule;
 
-    public class BaseCenter<TView, TViewModel> : Consumption.Core.Interfaces.IModule
-        where TView : ContentControl, new()
+    /// <summary>
+    /// View/ViewModel 控制基类
+    /// </summary>
+    /// <typeparam name="TView"></typeparam>
+    /// <typeparam name="TViewModel"></typeparam>
+    public class BaseCenter<TView, TViewModel> : IModule
+        where TView : UserControl, new()
         where TViewModel : ViewModelBase, new()
     {
-        public TView View;
-        public TViewModel ViewModel;
+
+        public TView View = new TView();
+        public TViewModel ViewModel = new TViewModel();
+
+        public async Task BindDefaultModel(int AuthValue)
+        {
+            if (ViewModel is IAuthority authority)
+                authority.InitPermissions(AuthValue);
+
+            if (ViewModel is IDataPager dataPager)
+                await dataPager.GetPageData(0);
+            View.DataContext = ViewModel;
+        }
+
         public void BindDefaultModel()
         {
-            if (ViewModel == null) ViewModel = new TViewModel();
-            (GetView() as Window).DataContext = ViewModel;
+            View.DataContext = ViewModel;
         }
 
-        public void BindViewModel<BViewModel>(BViewModel viewModel) where BViewModel : class, new()
+        object IModule.GetView()
         {
-            (this.GetView() as Window).DataContext = viewModel;
-        }
-
-        public object GetView()
-        {
-            if (View == null)
-                View = new TView();
             return View;
         }
-
     }
 }
