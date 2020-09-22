@@ -25,16 +25,16 @@ namespace Consumption.ViewModel
     using System.Threading.Tasks;
     using Consumption.Common.Contract;
     using Consumption.Core.Common;
+    using Consumption.ViewModel.Interfaces;
 
     /// <summary>
     /// 登录模块
     /// </summary>
-    public class LoginViewModel : BaseViewModel
+    public class LoginViewModel : BaseDialogViewModel, IBaseDialog
     {
-        private readonly IConsumptionService service;
         public LoginViewModel()
         {
-            NetCoreProvider.Get(out service);
+            this.repository = NetCoreProvider.Get<IUserRepository>();
             LoginCommand = new RelayCommand(Login);
         }
 
@@ -43,6 +43,7 @@ namespace Consumption.ViewModel
         private string passWord;
         private string report;
         private string isCancel;
+        private readonly IUserRepository repository;
 
         public string UserName
         {
@@ -88,13 +89,13 @@ namespace Consumption.ViewModel
                 }
                 DialogIsOpen = true;
                 await Task.Delay(300);
-                var r = await service.LoginAsync(UserName, PassWord);
+                var r = await repository.LoginAsync(UserName, PassWord);
                 if (r == null || !r.success)
                 {
                     SnackBar(r == null ? "远程服务器无法连接!" : r.message);
                     return;
                 }
-                var authResult = await service.GetAuthListAsync();
+                var authResult = await repository.GetAuthListAsync();
                 if (authResult == null || !authResult.success)
                 {
                     SnackBar("获取模块清单异常!");
@@ -116,7 +117,7 @@ namespace Consumption.ViewModel
             catch (Exception ex)
             {
                 SnackBar(ex.Message);
-                Log.Error(ex.Message);
+                //Log.Error(ex.Message);
             }
             finally
             {

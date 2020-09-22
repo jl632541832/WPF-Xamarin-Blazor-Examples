@@ -14,6 +14,7 @@
 
 namespace Consumption.Core.Interfaces
 {
+    using Consumption.Core.Aop;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -25,11 +26,6 @@ namespace Consumption.Core.Interfaces
         /// 弹出窗口
         /// </summary>
         Task<bool> ShowDialog();
-
-        /// <summary>
-        /// 关闭窗口
-        /// </summary>
-        void Close();
 
         /// <summary>
         /// 注册模块事件

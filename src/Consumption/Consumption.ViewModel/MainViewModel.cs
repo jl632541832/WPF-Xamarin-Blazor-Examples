@@ -14,34 +14,38 @@
 
 namespace Consumption.ViewModel
 {
+    using Consumption.Common.Contract;
+    using Consumption.Core.Aop;
+    using Consumption.Core.Interfaces;
     using Consumption.ViewModel.Common;
+    using Consumption.ViewModel.Interfaces;
     using GalaSoft.MvvmLight;
     using GalaSoft.MvvmLight.Command;
     using GalaSoft.MvvmLight.Messaging;
+    using System;
     using System.Collections.ObjectModel;
+    using System.Linq;
+    using System.Runtime;
     using System.Threading.Tasks;
+    using Ubiety.Dns.Core.Records.NotUsed;
 
     /// <summary>
     /// 应用首页
     /// </summary>
-    public class MainViewModel : BaseViewModel
+    public class MainViewModel : BaseDialogViewModel, IBaseDialog
     {
         public MainViewModel()
         {
-            OpenPageCommand = new RelayCommand<string>(arg =>
-            {
-                Messenger.Default.Send(arg, "OpenPage");
-            });
-            ClosePageCommand = new RelayCommand<string>(arg =>
-              {
-                  Messenger.Default.Send(arg, "ClosePage");
-              });
-            GoHomeCommand = new RelayCommand(() =>
-            {
-                Messenger.Default.Send("", "GoHomePage");
-            });
+            OpenPageCommand = new RelayCommand<string>(pageName => Messenger.Default.Send(pageName, "OpenPage"));
+            ClosePageCommand = new RelayCommand<string>(pageName => Messenger.Default.Send(pageName, "ClosePage"));
+            GoHomeCommand = new RelayCommand(InitHomeView);
             ExpandMenuCommand = new RelayCommand(() =>
             {
+                for (int i = 0; i < ModuleManager.ModuleGroups.Count; i++)
+                {
+                    var arg = ModuleManager.ModuleGroups[i];
+                    arg.ContractionTemplate = !arg.ContractionTemplate;
+                }
                 Messenger.Default.Send("", "ExpandMenu");
             });
         }
@@ -138,6 +142,23 @@ namespace Consumption.ViewModel
             ModuleList = new ObservableCollection<ModuleUIComponent>();
             //加载自身的程序集模块
             await ModuleManager.LoadAssemblyModule();
+            InitHomeView();
+        }
+
+      
+        /// <summary>
+        /// 初始化首页
+        /// </summary>
+        void InitHomeView()
+        {
+            var dialog = NetCoreProvider.Get<IBaseModule>("HomeCenter");
+            dialog.BindDefaultModel();
+            ModuleUIComponent component = new ModuleUIComponent();
+            component.Name = "首页";
+            component.Body = dialog.GetView();
+            ModuleList.Add(component);
+            ModuleManager.Modules.Add(component);
+            CurrentModule = ModuleList[ModuleList.Count - 1];
         }
     }
 }
