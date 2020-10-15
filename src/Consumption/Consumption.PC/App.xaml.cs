@@ -1,27 +1,21 @@
-﻿using Consumption.Core.Response;
-using Consumption.Core.Interfaces;
-using Consumption.PC.View;
-using Consumption.PC.ViewCenter;
-using Consumption.Service;
+﻿using Consumption.Service;
 using Consumption.ViewModel;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
 using System.Configuration;
-using System.Data;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
-using Consumption.Common.Contract;
 using Consumption.ViewModel.Common;
 using Autofac;
 using System.Reflection;
 using Consumption.Core.Common;
-using Consumption.Core.Aop;
 using Consumption.ViewModel.Core;
-using Consumption.Core.Entity;
 using Consumption.ViewModel.Interfaces;
 using GalaSoft.MvvmLight;
+using Consumption.Shared.DataInterfaces;
+using Consumption.Shared.Common;
+using System;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Consumption.PC.ViewCenter;
 
 namespace Consumption.PC
 {
@@ -30,6 +24,21 @@ namespace Consumption.PC
     /// </summary>
     public partial class App : Application
     {
+        public App()
+        {
+            App.Current.DispatcherUnhandledException += Current_DispatcherUnhandledException;
+        }
+
+        public IServiceProvider ServiceProvider { get; private set; }
+        public IConfiguration Configuration { get; private set; }
+
+        private void Current_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        {
+            MessageBox.Show(e.Exception.Message);
+            NetCoreProvider.Get<ILog>()?.Warn(e.Exception, e.Exception.Message);
+            e.Handled = true;
+        }
+
         protected override async void OnStartup(StartupEventArgs e)
         {
             Contract.serverUrl = ConfigurationManager.AppSettings["serverAddress"];
@@ -37,6 +46,27 @@ namespace Consumption.PC
             NetCoreProvider.RegisterServiceLocator(container);
             var login = NetCoreProvider.Get<IModuleDialog>("LoginCenter");
             await login.ShowDialog();
+
+            #region 2020-10-10 未启用部分的待更新ASP.NETCore 依赖注入
+
+            //var service = new ServiceCollection();
+            ////注册日志服务
+            //service.AddSingleton<ILog, ConsumptionNLog>();
+            ////注册HTTP服务依赖关系
+            //service.AddCustomRepository<UserService, IUserRepository>()
+            //    .AddCustomRepository<GroupService, IGroupRepository>()
+            //    .AddCustomRepository<MenuService, IMenuRepository>()
+            //    .AddCustomRepository<BasicService, IBasicRepository>();
+            ////注册ViewModel依赖关系
+            //service.AddCustomViewModel<UserViewModel, IUserViewModel>()
+            // .AddCustomViewModel<GroupViewModel, IGroupViewModel>()
+            // .AddCustomViewModel<MenuViewModel, IMenuViewModel>()
+            // .AddCustomViewModel<BasicViewModel, IBasicViewModel>();
+            ////注册ViewCenter依赖关系
+            //service.AddCustomViewCenter<LoginCenter>();
+            //ServiceProvider = service.BuildServiceProvider();
+
+            #endregion
         }
 
         private IContainer ConfigureServices()

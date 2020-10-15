@@ -16,22 +16,25 @@
 namespace Consumption.Api
 {
     using System;
-    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Threading.Tasks;
-    using Consumption.Core.Entity;
+    using System.Reflection;
+    using AutoMapper;
+    using Consumption.Api.ApiManager;
+    using Consumption.Api.Extensions;
     using Consumption.EFCore;
     using Consumption.EFCore.Context;
+    using Consumption.Shared.DataInterfaces;
+    using Consumption.Shared.DataModel;
+    using IGeekFan.AspNetCore.Knife4jUI;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Hosting;
-    using Microsoft.AspNetCore.HttpsPolicy;
-    using Microsoft.AspNetCore.Mvc;
+    using Microsoft.AspNetCore.Mvc.Controllers;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Hosting;
-    using Microsoft.Extensions.Logging;
+    using Microsoft.OpenApi.Models;
 
 
     /// <summary>
@@ -74,19 +77,22 @@ namespace Consumption.Api
                 options.MaxAge = TimeSpan.FromDays(60);
             });
 
+            var migrationsAssembly = typeof(ConsumptionContext).GetTypeInfo().Assembly.GetName();
+            var migrationsAssemblyName = migrationsAssembly.Name;
+
             services.AddDbContext<ConsumptionContext>(options =>
             {
                 //迁移至Sqlite
                 //var connectionString = Configuration.GetConnectionString("NoteConnection");
-                //options.UseSqlite(connectionString);
+                //options.UseSqlite(connectionString,sql => sql.MigrationsAssembly(migrationsAssemblyName));
 
                 //迁移至MySql
                 var connectionString = Configuration.GetConnectionString("MySqlNoteConnection");
-                options.UseMySQL(connectionString);
+                options.UseMySQL(connectionString, sql => sql.MigrationsAssembly(migrationsAssemblyName));
 
                 //迁移至MsSql
                 //var connectionString = Configuration.GetConnectionString("MsSqlNoteConnection");
-                //options.UseSqlServer(connectionString);
+                //options.UseSqlServer(connectionString, sql => sql.MigrationsAssembly(migrationsAssemblyName));
             })
             .AddUnitOfWork<ConsumptionContext>()
             .AddCustomRepository<User, CustomUserRepository>()
@@ -96,19 +102,23 @@ namespace Consumption.Api
             .AddCustomRepository<AuthItem, CustomAuthItemRepository>()
             .AddCustomRepository<Basic, CustomBasicRepository>();
 
+            services.AddTransient<IDataInitializer, DataInitializer>();
+            services.AddTransient<IUserManager, UserManager>();
+            services.AddTransient<IMenuManager, MenuManager>();
+            services.AddTransient<IGroupManager, GroupManager>();
+            services.AddTransient<IBasicManager, BasicManager>();
+            services.AddTransient<IAuthItemManager, AuthManager>();
+
+            var automapperConfig = new MapperConfiguration(configuration =>
+            {
+                configuration.AddProfile(new AutoMappingFile());
+            });
+            var autoMapper = automapperConfig.CreateMapper();
+            services.AddSingleton(autoMapper);
+
             services.AddSwaggerGen(options =>
             {
-                options.IncludeXmlComments(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NoteApi.xml"));
-                options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo()
-                {
-                    Title = "Note Service API",
-                    Version = "v1",
-                    Contact = new Microsoft.OpenApi.Models.OpenApiContact()
-                    {
-                        Name = "WPF-Xamarin-Blazor-Examples",
-                        Url = new Uri("https://github.com/HenJigg/WPF-Xamarin-Blazor-Examples")
-                    }
-                });
+                options.SwaggerDoc("v1", new OpenApiInfo { Title = ".NET Core WebApi v1", Version = "v1" });
             });
         }
 
@@ -117,25 +127,32 @@ namespace Consumption.Api
         /// </summary>
         /// <param name="app"></param>
         /// <param name="env"></param>
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public async void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            if (env.IsDevelopment())
+            //初始化数据库
+            using (var serviceScope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
-                app.UseDeveloperExceptionPage();
+                var databaseInitializer = serviceScope.ServiceProvider.GetService<IDataInitializer>();
+                await databaseInitializer.InitSampleDataAsync();
             }
+
+            if (env.IsDevelopment())
+                app.UseDeveloperExceptionPage();
+            app.UseFileServer();
             app.UseHttpsRedirection();
             app.UseCors("any");
             app.UseRouting();
             app.UseAuthorization();
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
             app.UseSwagger();
             app.UseSwaggerUI(options =>
             {
                 options.ShowExtensions();
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "NoteApi");
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", ".NET Core WebApi v1");
+            });
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapSwagger();
             });
         }
     }
