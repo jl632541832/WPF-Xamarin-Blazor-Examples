@@ -21,7 +21,6 @@ namespace Consumption.ViewModel
     using System.Collections.ObjectModel;
     using System.Linq;
     using Consumption.ViewModel.Common;
-    using GalaSoft.MvvmLight.Command;
     using Consumption.ViewModel.Interfaces;
     using Consumption.Shared.DataModel;
     using Consumption.Shared.Common;
@@ -29,6 +28,7 @@ namespace Consumption.ViewModel
     using Consumption.Shared.Common.Query;
     using Newtonsoft.Json;
     using Consumption.Shared.Common.Collections;
+    using Microsoft.Toolkit.Mvvm.Input;
 
 
     /// <summary>
@@ -37,11 +37,11 @@ namespace Consumption.ViewModel
     public class GroupViewModel : BaseRepository<GroupDto>, IGroupViewModel
     {
         private readonly IUserRepository userRepository;
-        public readonly IGroupRepository groupRepository;
-        public GroupViewModel() : base(NetCoreProvider.Get<IGroupRepository>())
+        private readonly IGroupRepository groupRepository;
+
+        public GroupViewModel(IGroupRepository repository) : base(repository)
         {
             userRepository = NetCoreProvider.Get<IUserRepository>();
-            groupRepository = repository as IGroupRepository;
             AddUserCommand = new RelayCommand<UserDto>(arg =>
             {
                 if (arg == null) return;
@@ -54,11 +54,12 @@ namespace Consumption.ViewModel
                 var u = GroupDto.GroupUsers?.FirstOrDefault(t => t.Account == arg.Account);
                 if (u != null) GroupDto.GroupUsers?.Remove(u);
             });
+            groupRepository = repository;
         }
 
         #region Override
 
-        public override void Execute(string arg)
+        public override async Task Execute(string arg)
         {
             switch (arg)
             {
@@ -68,7 +69,7 @@ namespace Consumption.ViewModel
                 case "添加所有选中项": AddAllUser(); break;
                 case "删除所有选中用户": DeleteAllUser(); break;
             }
-            base.Execute(arg);
+            await base.Execute(arg);
         }
 
         public override async void AddAsync()
@@ -80,6 +81,7 @@ namespace Consumption.ViewModel
 
         public override async void UpdateAsync()
         {
+            if (GridModel == null) return;
             await UpdateMenuModules();
             var g = await groupRepository.GetGroupAsync(GridModel.Id);
             if (g.StatusCode != 200)
@@ -110,7 +112,7 @@ namespace Consumption.ViewModel
             SelectPageIndex = 1;
         }
 
-        public override async void SaveAsync()
+        public override async Task SaveAsync()
         {
             try
             {
@@ -165,7 +167,7 @@ namespace Consumption.ViewModel
         public int SelectCardIndex
         {
             get { return selectCardIndex; }
-            set { selectCardIndex = value; RaisePropertyChanged(); }
+            set { selectCardIndex = value; OnPropertyChanged(); }
         }
 
 
@@ -177,7 +179,7 @@ namespace Consumption.ViewModel
         public string UserSearch
         {
             get { return userSearch; }
-            set { userSearch = value; RaisePropertyChanged(); }
+            set { userSearch = value; OnPropertyChanged(); }
         }
 
         private GroupDataDto groupDto;
@@ -188,7 +190,7 @@ namespace Consumption.ViewModel
         public GroupDataDto GroupDto
         {
             get { return groupDto; }
-            set { groupDto = value; RaisePropertyChanged(); }
+            set { groupDto = value; OnPropertyChanged(); }
         }
 
         private ObservableCollection<UserDto> gridUserModelList;
@@ -199,7 +201,7 @@ namespace Consumption.ViewModel
         public ObservableCollection<UserDto> GridUserModelList
         {
             get { return gridUserModelList; }
-            set { gridUserModelList = value; RaisePropertyChanged(); }
+            set { gridUserModelList = value; OnPropertyChanged(); }
         }
 
 
@@ -211,7 +213,7 @@ namespace Consumption.ViewModel
         public ObservableCollection<MenuModuleGroupDto> MenuModules
         {
             get { return menuModules; }
-            set { menuModules = value; RaisePropertyChanged(); }
+            set { menuModules = value; OnPropertyChanged(); }
         }
 
         #endregion

@@ -15,7 +15,6 @@
 namespace Consumption.PC.ViewCenter
 {
     using Consumption.ViewModel;
-    using GalaSoft.MvvmLight.Messaging;
     using System;
     using System.Runtime;
     using System.Threading.Tasks;
@@ -27,6 +26,7 @@ namespace Consumption.PC.ViewCenter
     using Consumption.ViewModel.Interfaces;
     using Consumption.Shared.Common;
     using Consumption.ViewModel.Common.Aop;
+    using Microsoft.Toolkit.Mvvm.Messaging;
 
     /// <summary>
     /// 首页控制类
@@ -36,91 +36,38 @@ namespace Consumption.PC.ViewCenter
         public override void SubscribeMessenger()
         {
             //非阻塞式窗口提示消息
-            Messenger.Default.Register<string>(view, "Snackbar", arg =>
-            {
-                var messageQueue = view.SnackbarThree.MessageQueue;
-                messageQueue.Enqueue(arg);
-            });
+            WeakReferenceMessenger.Default.Register<string, string>(view, "Snackbar", (sender, arg) =>
+             {
+                 var messageQueue = view.SnackbarThree.MessageQueue;
+                 messageQueue.Enqueue(arg);
+             });
             //阻塞式窗口提示消息
-            Messenger.Default.Register<MsgInfo>(view, "UpdateDialog", m =>
-              {
-                  if (m.IsOpen)
-                      _ = DialogHost.Show(new SplashScreenView()
-                      {
-                          DataContext = new { Msg = m.Msg }
-                      }, "Root");
-                  else
-                  {
-                      DialogHost.Close("Root");
-                  }
-              });
-            //菜单执行相关动画及模板切换
-            Messenger.Default.Register<string>(view, "ExpandMenu", arg =>
-            {
-                if (view.MENU.Width < 200)
-                    AnimationHelper.CreateWidthChangedAnimation(view.MENU, 60, 200, new TimeSpan(0, 0, 0, 0, 300));
-                else
-                    AnimationHelper.CreateWidthChangedAnimation(view.MENU, 200, 60, new TimeSpan(0, 0, 0, 0, 300));
-
-                //由于...
-                var template = view.IC.ItemTemplateSelector;
-                view.IC.ItemTemplateSelector = null;
-                view.IC.ItemTemplateSelector = template;
-            });
-            Messenger.Default.Register<string>(view, "OpenPage", OpenPage);
-            Messenger.Default.Register<string>(view, "ClosePage", ClosePage);
-            base.SubscribeMessenger();
-        }
-
-        /// <summary>
-        /// 打开新页面
-        /// </summary>
-        /// <param name="pageName"></param>
-        [GlobalProgress]
-        public async virtual void OpenPage(string pageName)
-        {
-            if (string.IsNullOrWhiteSpace(pageName)) return;
-            var pageModule = viewModel.ModuleManager.Modules.FirstOrDefault(t => t.Name.Equals(pageName));
-            if (pageModule == null) return;
-
-            var module = viewModel.ModuleList.FirstOrDefault(t => t.Name == pageModule.Name);
-            if (module == null)
-            {
-                IBaseModule dialog = NetCoreProvider.Get<IBaseModule>(pageModule.TypeName);
-                await dialog.BindDefaultModel(pageModule.Auth);
-                viewModel.ModuleList.Add(new ModuleUIComponent()
+            WeakReferenceMessenger.Default.Register<MsgInfo, string>(view, "UpdateDialog", (sender, m) =>
                 {
-                    Code = pageModule.Code,
-                    Auth = pageModule.Auth,
-                    Name = pageModule.Name,
-                    TypeName = pageModule.TypeName,
-                    Body = dialog.GetView()
+                    if (m.IsOpen)
+                        _ = DialogHost.Show(new SplashScreenView()
+                        {
+                            DataContext = new { Msg = m.Msg }
+                        }, "Root");
+                    else
+                    {
+                        DialogHost.Close("Root");
+                    }
                 });
-                viewModel.CurrentModule = viewModel.ModuleList.Last();
-                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                GC.Collect();
-            }
-            else
-                viewModel.CurrentModule = module;
-        }
+            //菜单执行相关动画及模板切换
+            WeakReferenceMessenger.Default.Register<string, string>(view, "ExpandMenu", (sender, arg) =>
+              {
+                  if (view.MENU.Width < 200)
+                      AnimationHelper.CreateWidthChangedAnimation(view.MENU, 60, 200, new TimeSpan(0, 0, 0, 0, 300));
+                  else
+                      AnimationHelper.CreateWidthChangedAnimation(view.MENU, 200, 60, new TimeSpan(0, 0, 0, 0, 300));
 
-        /// <summary>
-        /// 关闭页面
-        /// </summary>
-        /// <param name="pageName"></param>
-        public void ClosePage(string pageName)
-        {
-            var module = viewModel.ModuleList.FirstOrDefault(t => t.Name.Equals(pageName));
-            if (module != null)
-            {
-                viewModel.ModuleList.Remove(module);
-                if (viewModel.ModuleList.Count > 0)
-                    viewModel.CurrentModule = viewModel.ModuleList.Last();
-                else
-                    viewModel.CurrentModule = null;
-                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-                GC.Collect();
-            }
+                  //由于...
+                  var template = view.IC.ItemTemplateSelector;
+                  view.IC.ItemTemplateSelector = null;
+                  view.IC.ItemTemplateSelector = template;
+              });
+            base.SubscribeMessenger();
         }
 
         /// <summary>

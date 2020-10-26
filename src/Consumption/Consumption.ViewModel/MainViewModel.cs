@@ -17,10 +17,11 @@ namespace Consumption.ViewModel
     using Consumption.Shared.Common;
     using Consumption.ViewModel.Common;
     using Consumption.ViewModel.Interfaces;
-    using GalaSoft.MvvmLight;
-    using GalaSoft.MvvmLight.Command;
-    using GalaSoft.MvvmLight.Messaging;
+    using Microsoft.Toolkit.Mvvm.Input;
+    using Microsoft.Toolkit.Mvvm.Messaging;
     using System.Collections.ObjectModel;
+    using System.Diagnostics;
+    using System.Linq;
     using System.Threading.Tasks;
 
     /// <summary>
@@ -30,8 +31,8 @@ namespace Consumption.ViewModel
     {
         public MainViewModel()
         {
-            OpenPageCommand = new RelayCommand<string>(pageName => Messenger.Default.Send(pageName, "OpenPage"));
-            ClosePageCommand = new RelayCommand<string>(pageName => Messenger.Default.Send(pageName, "ClosePage"));
+            OpenPageCommand = new AsyncRelayCommand<string>(OpenPage);
+            ClosePageCommand = new RelayCommand<string>(ClosePage);
             GoHomeCommand = new RelayCommand(InitHomeView);
             ExpandMenuCommand = new RelayCommand(() =>
             {
@@ -40,7 +41,7 @@ namespace Consumption.ViewModel
                     var arg = ModuleManager.ModuleGroups[i];
                     arg.ContractionTemplate = !arg.ContractionTemplate;
                 }
-                Messenger.Default.Send("", "ExpandMenu");
+                WeakReferenceMessenger.Default.Send("", "ExpandMenu");
             });
         }
 
@@ -54,7 +55,7 @@ namespace Consumption.ViewModel
         public ModuleUIComponent CurrentModule
         {
             get { return currentModule; }
-            set { currentModule = value; RaisePropertyChanged(); }
+            set { currentModule = value; OnPropertyChanged(); }
         }
 
 
@@ -66,7 +67,7 @@ namespace Consumption.ViewModel
         public ObservableCollection<ModuleUIComponent> ModuleList
         {
             get { return moduleList; }
-            set { moduleList = value; RaisePropertyChanged(); }
+            set { moduleList = value; OnPropertyChanged(); }
         }
 
         private ModuleManager moduleManager;
@@ -77,7 +78,7 @@ namespace Consumption.ViewModel
         public ModuleManager ModuleManager
         {
             get { return moduleManager; }
-            set { moduleManager = value; RaisePropertyChanged(); }
+            set { moduleManager = value; OnPropertyChanged(); }
         }
 
         #endregion
@@ -97,7 +98,7 @@ namespace Consumption.ViewModel
         /// <summary>
         /// 打开新页面，string: 模块名称
         /// </summary>
-        public RelayCommand<string> OpenPageCommand { get; private set; }
+        public AsyncRelayCommand<string> OpenPageCommand { get; private set; }
 
         /// <summary>
         /// 关闭选择页, string: 模块名称
@@ -106,15 +107,62 @@ namespace Consumption.ViewModel
 
         public RelayCommand MinCommand { get; private set; } = new RelayCommand(() =>
         {
-            Messenger.Default.Send("", "WindowMinimize");
+            WeakReferenceMessenger.Default.Send("", "WindowMinimize");
         });
 
         public RelayCommand MaxCommand { get; private set; } = new RelayCommand(() =>
         {
-            Messenger.Default.Send("", "WindowMaximize");
+            WeakReferenceMessenger.Default.Send("", "WindowMaximize");
         });
 
         #endregion
+
+        /// <summary>
+        /// 打开页面
+        /// </summary>
+        /// <param name="pageName"></param>
+        /// <returns></returns>
+        public async virtual Task OpenPage(string pageName)
+        {
+            if (string.IsNullOrWhiteSpace(pageName)) return;
+            var pageModule = this.ModuleManager.Modules.FirstOrDefault(t => t.Name.Equals(pageName));
+            if (pageModule == null) return;
+
+            var module = this.ModuleList.FirstOrDefault(t => t.Name == pageModule.Name);
+            if (module == null)
+            {
+                IBaseModule dialog = NetCoreProvider.Get<IBaseModule>(pageModule.TypeName);
+                await dialog.BindDefaultModel(pageModule.Auth);
+                this.ModuleList.Add(new ModuleUIComponent()
+                {
+                    Code = pageModule.Code,
+                    Auth = pageModule.Auth,
+                    Name = pageModule.Name,
+                    TypeName = pageModule.TypeName,
+                    Body = dialog.GetView()
+                });
+                this.CurrentModule = this.ModuleList.Last();
+            }
+            else
+                this.CurrentModule = module;
+        }
+
+        /// <summary>
+        /// 关闭页面
+        /// </summary>
+        /// <param name="pageName"></param>
+        public void ClosePage(string pageName)
+        {
+            var module = this.ModuleList.FirstOrDefault(t => t.Name.Equals(pageName));
+            if (module != null)
+            {
+                this.ModuleList.Remove(module);
+                if (this.ModuleList.Count > 0)
+                    this.CurrentModule = this.ModuleList.Last();
+                else
+                    this.CurrentModule = null;
+            }
+        }
 
         /// <summary>
         /// 初始化页面上下文内容
@@ -152,7 +200,7 @@ namespace Consumption.ViewModel
             component.Body = dialog.GetView();
             ModuleList.Add(component);
             ModuleManager.Modules.Add(component);
-            CurrentModule = ModuleList[ModuleList.Count - 1];
+            CurrentModule = ModuleList.Last();
         }
     }
 }
